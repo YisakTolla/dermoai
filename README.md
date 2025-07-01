@@ -109,17 +109,14 @@ npm install
 ### Backend Environment Variables (.env)
 
 ```env
-# LLM API Keys
-OPENAI_API_KEY=your-key-here
-GEMINI_API_KEY=your-key-here
+# API Keys
 ANTHROPIC_API_KEY=your-key-here
-
-# Google Maps
 GOOGLE_MAPS_API_KEY=your-key-here
 
 # Server
 PORT=3001
 FRONTEND_URL=http://localhost:3000
+DEFAULT_LLM_PROVIDER=anthropic
 ```
 
 ### Frontend Environment Variables (.env)
@@ -214,10 +211,23 @@ cd backend && npm test
 
 ## Deployment
 
-The application can be deployed using various platforms:
-- Frontend: Vercel, Netlify, or AWS S3
-- Backend: Heroku, AWS EC2, or Google Cloud
-- ML Service: AWS Lambda or dedicated server
+### Quick Deploy (Free Hosting)
+
+The application is designed for easy deployment on free platforms:
+
+1. **Frontend**: Deploy to [Vercel](https://vercel.com)
+   ```bash
+   cd frontend && vercel --prod
+   ```
+
+2. **Backend**: Deploy to [Render](https://render.com)
+   - Connect GitHub repo
+   - Set root directory: `backend`
+   - Add environment variables
+
+3. **ML Model**: Already deployed at [Hugging Face Spaces](https://huggingface.co/spaces/Hrigved/skinalyze)
+
+See `DEPLOYMENT_SIMPLE.md` for detailed instructions.
 
 ## Security Considerations
 

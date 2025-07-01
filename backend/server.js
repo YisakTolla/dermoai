@@ -618,10 +618,14 @@ Note: This is an AI analysis for educational purposes only. Always consult a hea
     }
     
     try {
-      const modelResponse = await axios.post('http://localhost:5001/predict', {
+      // Use Hugging Face Space endpoint
+      const modelResponse = await axios.post('https://hrigved-skinalyze.hf.space/predict', {
         image: image
       }, {
-        timeout: 30000
+        timeout: 30000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       
       const predictions = modelResponse.data.predictions;

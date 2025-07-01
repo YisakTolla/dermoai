@@ -72,8 +72,8 @@ skindiseasemlapp/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/skindiseasemlapp.git
-cd skindiseasemlapp
+git clone https://github.com/YisakTolla/dermoai.git
+cd dermoai
 ```
 
 ### 2. Backend Setup

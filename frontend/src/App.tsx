@@ -360,7 +360,7 @@ function App() {
           </div>
           <div className="hero-visual">
             <div className="metric-card">
-              <div className="metric-value">23</div>
+              <div className="metric-value">24</div>
               <div className="metric-label">Skin Conditions</div>
             </div>
             <div className="metric-card">
@@ -441,7 +441,7 @@ function App() {
                   </div>
                   <h3>Upload Image</h3>
                   <p>Select a clear, well-lit image of the skin area for analysis</p>
-                  <span className="upload-specs">JPG, PNG • Max 10MB • Minimum 512px</span>
+                  <span className="upload-specs">JPG, PNG, WebP • Max 10MB</span>
                 </div>
               </div>
             )}
@@ -597,7 +597,7 @@ function App() {
                 </svg>
               </div>
               <h3>Medical Dataset Integration</h3>
-              <p>Demonstrates integration with DermNet's 23-category skin condition dataset, showcasing how AI can learn from medical imagery.</p>
+              <p>Trained on DermNet's comprehensive 24-category skin condition dataset, providing accurate AI-powered analysis.</p>
             </div>
             
             <div className="feature-item">
@@ -608,7 +608,7 @@ function App() {
                 </svg>
               </div>
               <h3>AI-Powered Chat Assistant</h3>
-              <p>Intelligent chatbot powered by advanced LLMs that can answer dermatology questions and provide educational information.</p>
+              <p>Intelligent chatbot powered by Claude AI that can answer dermatology questions and provide educational information.</p>
             </div>
             
             <div className="feature-item">
@@ -685,38 +685,29 @@ function App() {
           <div className="footer-grid">
             <div className="footer-brand">
               <h3>DermoAI</h3>
-              <p>AI-powered skin analysis platform making dermatological screening more accessible worldwide. Using advanced machine learning to help identify potential skin conditions and connect users with professional healthcare providers.</p>
+              <p>AI-powered skin analysis making dermatological screening accessible to everyone.</p>
             </div>
             <div className="link-column">
-              <h4>Technology</h4>
+              <h4>Features</h4>
+              <a href="#analysis">Try Analysis</a>
               <a href="#how-it-works">How It Works</a>
-              <a href="#features">Features</a>
-              <a href="#analysis">Try Demo</a>
-              <a href="https://huggingface.co/spaces/Hrigved/skinalyze" target="_blank" rel="noopener noreferrer">HuggingFace Model</a>
-            </div>
-            <div className="link-column">
-              <h4>Healthcare</h4>
-              <a href="#analysis">Skin Analysis</a>
-              <button 
-                className="footer-link" 
-                onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
-                style={{ background: 'none', border: 'none', color: 'inherit', padding: 0, font: 'inherit', cursor: 'pointer', textAlign: 'left' }}
-              >
-                Find Dermatologists
-              </button>
-              <a href="#features">AI Chat Assistant</a>
-              <a href="#disclaimer">Medical Disclaimer</a>
-            </div>
-            <div className="link-column">
-              <h4>About</h4>
-              <a href="#hero">About DermoAI</a>
-              <a href="https://github.com/yourusername/dermoai" target="_blank" rel="noopener noreferrer">Source Code</a>
               <a href="#features">Innovation</a>
-              <a href="#disclaimer">Privacy Policy</a>
+            </div>
+            <div className="link-column">
+              <h4>Resources</h4>
+              <a href="https://github.com/YisakTolla/dermoai" target="_blank" rel="noopener noreferrer">GitHub</a>
+              <a href="https://huggingface.co/spaces/Hrigved/skinalyze" target="_blank" rel="noopener noreferrer">ML Model</a>
+              <a href="#disclaimer">Disclaimer</a>
+            </div>
+            <div className="link-column">
+              <h4>Connect</h4>
+              <a href="https://github.com/YisakTolla" target="_blank" rel="noopener noreferrer">Developer</a>
+              <a href="https://github.com/YisakTolla/dermoai/issues" target="_blank" rel="noopener noreferrer">Report Issue</a>
+              <a href="https://github.com/YisakTolla" target="_blank" rel="noopener noreferrer">Contact</a>
             </div>
           </div>
           <div className="footer-bottom">
-            <p>&copy; 2024 DermoAI - Democratizing Access to Dermatological AI Technology</p>
+            <p>&copy; 2024 DermoAI - For educational purposes only. Not a substitute for medical advice.</p>
           </div>
         </div>
       </footer>

@@ -1,7 +1,5 @@
-// Frontend: Secure Chatbot Component (no API keys exposed)
 import React, { useState, useRef, useEffect } from 'react';
 
-// SVG Icons (same as before - keeping them for brevity)
 const MessageCircleIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
@@ -67,7 +65,7 @@ const Chatbot = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      text: "Hi! I'm your AI dermatology assistant. I can help answer questions about skin conditions and analyze images. How can I help you today?",
+      text: "Hi there! 👋 I'm your friendly AI skin health assistant. I'm here to help you understand more about skin conditions and can even take a look at photos if you'd like.\n\n📋 Quick disclaimer: This information is for educational purposes only and should not replace professional medical advice. If you have skin concerns, please consult with a qualified healthcare provider or dermatologist for proper diagnosis and treatment.\n\nNow, how can I help you today? You can:\n• Ask me about any skin condition\n• Upload a photo for analysis\n• Get simple skincare tips\n\nWhat would you like to know?",
       sender: 'bot',
       timestamp: new Date()
     }
@@ -79,7 +77,6 @@ const Chatbot = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // API Configuration - points to your backend
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
   const scrollToBottom = () => {
@@ -90,7 +87,6 @@ const Chatbot = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Secure API call to your backend
   const sendMessageToAPI = async (message: string, imageBase64?: string): Promise<ChatResponse> => {
     try {
       setConnectionStatus('connecting');
@@ -99,14 +95,11 @@ const Chatbot = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // Add any authentication headers if needed
-          // 'Authorization': `Bearer ${userToken}`,
         },
         body: JSON.stringify({
           message,
           image: imageBase64,
           timestamp: new Date().toISOString(),
-          // Include any user context you need
           userContext: {
             sessionId: localStorage.getItem('sessionId') || generateSessionId(),
             userLocation: 'Sterling, VA' // or get from user
@@ -195,7 +188,6 @@ const Chatbot = () => {
 
       // Add suggestions as quick reply buttons if provided
       if (apiResponse.suggestions && apiResponse.suggestions.length > 0) {
-        // You could implement quick reply buttons here
         console.log('Suggestions:', apiResponse.suggestions);
       }
 
@@ -240,7 +232,6 @@ const Chatbot = () => {
 
   return (
     <div style={{ position: 'fixed', bottom: '16px', right: '16px', zIndex: 1000 }}>
-      {/* Chat Button */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
@@ -276,7 +267,6 @@ const Chatbot = () => {
         </button>
       )}
 
-      {/* Chat Window */}
       {isOpen && (
         <div style={{
           backgroundColor: 'white',
@@ -288,7 +278,6 @@ const Chatbot = () => {
           flexDirection: 'column',
           border: '1px solid #e5e7eb'
         }}>
-          {/* Header with Status */}
           <div style={{
             backgroundColor: '#2563eb',
             color: 'white',
@@ -326,7 +315,6 @@ const Chatbot = () => {
             </button>
           </div>
 
-          {/* Messages */}
           <div style={{
             flex: 1,
             overflowY: 'auto',
@@ -426,7 +414,6 @@ const Chatbot = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Image Preview */}
           {selectedImage && (
             <div style={{ padding: '8px 16px', borderTop: '1px solid #e5e7eb' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -446,7 +433,6 @@ const Chatbot = () => {
             </div>
           )}
 
-          {/* Input Area */}
           <div style={{ padding: '16px', borderTop: '1px solid #e5e7eb' }}>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
               <button

@@ -14,31 +14,27 @@ warnings.filterwarnings('ignore')
 app = Flask(__name__)
 CORS(app)
 
-# Model configuration
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model_path = "skin_disease_model.pth"
 classes_path = "classes.txt"
 
-# Load class names
+
 def load_classes():
     with open(classes_path, 'r') as f:
         classes = [line.strip() for line in f.readlines()]
     return classes
 
-# Initialize model
+
 def initialize_model(num_classes):
-    # Try DenseNet121 first (from Hugging Face model)
     try:
         model = models.densenet121(pretrained=False)
         num_features = model.classifier.in_features
         model.classifier = nn.Linear(num_features, num_classes)
         return model, 'densenet121'
     except:
-        # Fallback to ResNet152 (from ml_model.py)
         print("Trying ResNet152 architecture...")
         model = models.resnet152(pretrained=False)
         num_features = model.fc.in_features
-        # Custom head as per ml_model.py
         model.fc = nn.Sequential(
             nn.Linear(num_features, 1024),
             nn.ReLU(),
@@ -59,21 +55,19 @@ def initialize_model(num_classes):
         )
         return model, 'resnet152'
 
-# Image preprocessing - adjust based on model type
+
 transform_densenet = transforms.Compose([
     transforms.Resize((512, 512)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
-# ResNet preprocessing (from ml_model.py uses 224x224)
 transform_resnet = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
-# Load model and classes
 model = None
 model_type = None
 transform = None
@@ -84,7 +78,6 @@ try:
     model, model_type = initialize_model(num_classes)
     
     if os.path.exists(model_path):
-        # Try to load the model state dict
         try:
             state_dict = torch.load(model_path, map_location=device)
             model.load_state_dict(state_dict, strict=False)
@@ -92,17 +85,14 @@ try:
             model.eval()
             print(f"Model loaded successfully: {model_type} with {num_classes} classes")
             print(f"Using image size: {'512x512' if model_type == 'densenet121' else '224x224'}")
-            
-            # Select appropriate transform
             transform = transform_densenet if model_type == 'densenet121' else transform_resnet
         except Exception as load_error:
             print(f"Error loading state dict, trying alternative approach: {load_error}")
-            # Try loading as complete model
             try:
                 model = torch.load(model_path, map_location=device)
                 model.eval()
                 model_type = 'complete_model'
-                transform = transform_resnet  # Default to ResNet transform
+                transform = transform_resnet
                 print(f"Loaded complete model with {num_classes} classes")
             except Exception as e2:
                 print(f"Failed to load model: {e2}")
@@ -121,33 +111,27 @@ def predict():
         if model is None:
             return jsonify({'error': 'Model not loaded'}), 500
         
-        # Get image from request
         data = request.get_json()
         image_data = data.get('image')
         
         if not image_data:
             return jsonify({'error': 'No image provided'}), 400
         
-        # Decode base64 image
         if ',' in image_data:
             image_data = image_data.split(',')[1]
         
         image_bytes = base64.b64decode(image_data)
         image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
         
-        # Preprocess image
         current_transform = transform if transform is not None else transform_resnet
         input_tensor = current_transform(image).unsqueeze(0).to(device)
         
-        # Make prediction
         with torch.no_grad():
             outputs = model(input_tensor)
             probabilities = torch.nn.functional.softmax(outputs, dim=1)
             
-        # Get top 5 predictions
         top5_prob, top5_idx = torch.topk(probabilities, 5)
         
-        # Debug: Print all predictions
         print(f"Image shape: {input_tensor.shape}")
         print(f"Top 5 predictions:")
         

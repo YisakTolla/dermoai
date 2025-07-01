@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 
-// Import the new secure components
 import Chatbot from './Chatbot';
 import GoogleAPIDermatologistFinder from './GoogleAPIDermatologistFinder';
 
@@ -24,7 +23,6 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const analysisRef = useRef<HTMLDivElement>(null);
 
-  // API Configuration
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
@@ -32,19 +30,16 @@ function App() {
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
         alert('Please select an image smaller than 10MB');
         return;
       }
 
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         alert('Please select a valid image file');
         return;
       }
 
-      // Store filename
       setSelectedFileName(file.name);
 
       const reader = new FileReader();
@@ -77,7 +72,7 @@ function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          image: selectedImage.split(',')[1], // Remove data:image/jpeg;base64, prefix
+          image: selectedImage.split(',')[1],
           filename: selectedFileName,
           timestamp: new Date().toISOString()
         })
@@ -85,9 +80,8 @@ function App() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('API Response:', data); // Debug log
+        console.log('API Response:', data);
         
-        // Transform API response to match AnalysisResult interface
         if (data.success && data.analysis) {
           const analysis = data.analysis;
           const result: AnalysisResult = {
@@ -110,20 +104,18 @@ function App() {
             ],
             timeframe: getTimeframeFromCondition(analysis.condition)
           };
-          console.log('Setting real model result:', result); // Debug log
+          console.log('Setting real model result:', result);
           setAnalysisResult(result);
         } else {
           console.warn('Invalid API response format, using mock data', data);
           mockAnalysis();
         }
       } else {
-        // Fallback to mock analysis if API fails
         console.warn('API analysis failed with status:', response.status);
         mockAnalysis();
       }
     } catch (error) {
       console.error('Analysis error:', error);
-      // Fallback to mock analysis
       mockAnalysis();
     }
 
@@ -134,7 +126,6 @@ function App() {
     }, 500);
   };
 
-  // Helper function to get category from condition
   const getCategoryFromCondition = (condition: string): string => {
     const categoryMap: Record<string, string> = {
       'Acne and Rosacea': 'Inflammatory',
@@ -163,7 +154,6 @@ function App() {
     return 'Dermatological';
   };
 
-  // Helper function to get timeframe from condition
   const getTimeframeFromCondition = (condition: string): string => {
     const timeframeMap: Record<string, string> = {
       'Melanoma': 'Immediate medical attention required',
@@ -184,7 +174,6 @@ function App() {
     return '2-4 weeks for evaluation';
   };
 
-  // Mock analysis function as fallback
   const mockAnalysis = () => {
     const mockResults: AnalysisResult[] = [
       {
@@ -321,7 +310,6 @@ function App() {
 
   return (
     <div className="app">
-      {/* Navigation */}
       <nav className="navbar">
         <div className="nav-container">
           <div className="nav-brand">DermoAI</div>
@@ -342,7 +330,6 @@ function App() {
         </div>
       </nav>
 
-      {/* Hero Section */}
       <section id="hero" className="hero-section">
         <div className="hero-container">
           <div className="hero-content">
@@ -388,7 +375,6 @@ function App() {
         </div>
       </section>
 
-      {/* How It Works */}
       <section id="how-it-works" className="process-section">
         <div className="container">
           <div className="section-header">
@@ -424,7 +410,6 @@ function App() {
         </div>
       </section>
 
-      {/* Analysis Section */}
       <section id="analysis" className="analysis-section">
         <div className="container">
           <div className="section-header">
@@ -500,7 +485,6 @@ function App() {
         </div>
       </section>
 
-      {/* Results Section */}
       {analysisResult && (
         <section ref={analysisRef} id="results" className="results-section">
           <div className="container">
@@ -513,7 +497,6 @@ function App() {
             </div>
 
             <div className="results-layout">
-              {/* Primary Diagnosis */}
               <div className="diagnosis-card">
                 <div className="card-header">
                   <h3>Primary Diagnosis</h3>
@@ -538,7 +521,6 @@ function App() {
                 </div>
               </div>
 
-              {/* Recommendations Grid */}
               <div className="recommendations-grid">
                 <div className="recommendation-card">
                   <h4>Treatment Recommendations</h4>
@@ -600,7 +582,6 @@ function App() {
         </section>
       )}
 
-      {/* Features Section */}
       <section id="features" className="features-section">
         <div className="container">
           <div className="section-header">
@@ -679,7 +660,6 @@ function App() {
         </div>
       </section>
 
-      {/* Medical Disclaimer */}
       <div className="disclaimer-section">
         <div className="container">
           <div className="disclaimer-content">
@@ -700,7 +680,6 @@ function App() {
         </div>
       </div>
 
-      {/* Footer */}
       <footer className="footer">
         <div className="container">
           <div className="footer-grid">
@@ -742,10 +721,8 @@ function App() {
         </div>
       </footer>
 
-      {/* Secure AI Chatbot */}
       <Chatbot />
 
-      {/* Google Maps Dermatologist Finder */}
       <GoogleAPIDermatologistFinder userLocation="20164" />
     </div>
   );

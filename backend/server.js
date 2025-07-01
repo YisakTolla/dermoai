@@ -8,14 +8,12 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Security middleware
 app.use(helmet());
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
 }));
 
-// Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
@@ -23,20 +21,16 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
-// Parsing middleware
-app.use(express.json({ limit: '10mb' })); // For image uploads
+app.use(express.json({ limit: '10mb' }));
 
-// LLM Service Integration
 class LLMService {
   constructor() {
-    // Securely stored API keys from environment variables
     this.openaiKey = process.env.OPENAI_API_KEY;
     this.geminiKey = process.env.GEMINI_API_KEY;
     this.huggingfaceKey = process.env.HUGGINGFACE_API_KEY;
     this.anthropicKey = process.env.ANTHROPIC_API_KEY;
     
-    // Default to OpenAI, but can be configured
-    this.defaultProvider = process.env.DEFAULT_LLM_PROVIDER || 'openai';
+    this.defaultProvider = process.env.DEFAULT_LLM_PROVIDER || 'anthropic';
   }
 
   async callOpenAI(prompt, imageBase64 = null) {
@@ -47,7 +41,6 @@ class LLMService {
       }
     ];
 
-    // Build user message
     const userMessage = {
       role: "user",
       content: imageBase64 
@@ -145,7 +138,7 @@ class LLMService {
     }
   }
 
-  async callAnthropic(prompt, imageBase64 = null, mediaType = "image/jpeg") {
+  async callAnthropic(prompt, imageBase64 = null, mediaType = "image/jpeg", includeDisclaimer = false) {
     console.log('Calling Anthropic with:', {
       hasImage: !!imageBase64,
       imageLength: imageBase64 ? imageBase64.length : 0,
@@ -175,6 +168,23 @@ class LLMService {
       }
     ];
 
+    // System prompt with conditional disclaimer
+    const systemPrompt = includeDisclaimer 
+      ? `You are a friendly, conversational dermatology AI assistant for DermoAI. IMPORTANT: Start your FIRST response with this disclaimer: 'Important: This information is for educational purposes only and should not replace professional medical advice. If you have skin concerns, please consult with a qualified healthcare provider or dermatologist for proper diagnosis and treatment.' 
+
+After the disclaimer, be warm, friendly, and conversational. Use simple language that anyone can understand. Avoid medical jargon unless necessary, and if you must use technical terms, explain them in plain English. Be empathetic and supportive. For all subsequent messages in this conversation, do NOT include the disclaimer.`
+      : `You are a friendly, conversational dermatology AI assistant for DermoAI. Be warm, helpful, and easy to understand. Here's your personality:
+
+- Speak like a caring friend who happens to know about skin health
+- Use simple, everyday language - avoid medical jargon
+- If you must use technical terms, explain them simply
+- Be encouraging and supportive
+- Keep responses concise but informative
+- Use conversational phrases like "I understand", "That sounds concerning", "Here's what might help"
+- Make recommendations practical and easy to follow
+- Break down complex information into simple steps
+- Be empathetic to people's skin concerns`;
+
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -186,7 +196,7 @@ class LLMService {
         body: JSON.stringify({
           model: 'claude-3-5-sonnet-20241022',
           max_tokens: 800,
-          system: "You are a dermatology AI assistant for DermoAI. Provide educational information about skin conditions, always include appropriate medical disclaimers, and encourage users to seek professional medical advice.",
+          system: systemPrompt,
           messages
         })
       });
@@ -209,8 +219,7 @@ class LLMService {
     }
   }
 
-  // Main method to get AI response
-  async getResponse(prompt, imageBase64 = null, preferredProvider = null) {
+  async getResponse(prompt, imageBase64 = null, preferredProvider = null, sessionContext = {}) {
     const provider = preferredProvider || this.defaultProvider;
     
     try {
@@ -220,7 +229,9 @@ class LLMService {
         case 'gemini':
           return await this.callGemini(prompt, imageBase64);
         case 'anthropic':
-          return await this.callAnthropic(prompt, imageBase64);
+          // Check if this is the first message in the session
+          const includeDisclaimer = sessionContext.isFirstMessage || false;
+          return await this.callAnthropic(prompt, imageBase64, "image/jpeg", includeDisclaimer);
         default:
           throw new Error(`Unsupported provider: ${provider}`);
       }
@@ -228,7 +239,11 @@ class LLMService {
       // Fallback to a different provider if primary fails
       console.log(`Primary provider ${provider} failed, trying fallback...`);
       
-      if (provider !== 'openai' && this.openaiKey) {
+      // Try Anthropic first as fallback
+      if (provider !== 'anthropic' && this.anthropicKey) {
+        const includeDisclaimer = sessionContext.isFirstMessage || false;
+        return await this.callAnthropic(prompt, imageBase64, "image/jpeg", includeDisclaimer);
+      } else if (provider !== 'openai' && this.openaiKey) {
         return await this.callOpenAI(prompt, imageBase64);
       } else if (provider !== 'gemini' && this.geminiKey) {
         return await this.callGemini(prompt, imageBase64);
@@ -239,43 +254,46 @@ class LLMService {
   }
 }
 
-// Initialize LLM service
 const llmService = new LLMService();
 
-// Fallback responses for when LLM services are unavailable
+const sessionFirstMessages = new Map();
+
 const fallbackResponses = {
   greeting: "Hello! I'm here to help with dermatology questions. I'm currently experiencing some technical issues, but I'll do my best to assist you.",
   general: "I'd love to help with your dermatology question! I'm currently having some connectivity issues with my AI services, but please feel free to ask and I'll try to provide helpful information.",
   image: "I can see you've uploaded an image for analysis. While I'm currently having some technical difficulties with my image analysis capabilities, I recommend consulting with a dermatologist for professional evaluation of any skin concerns."
 };
 
-// Main chat endpoint
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, image, userContext } = req.body;
     
-    // Input validation
     if (!message && !image) {
       return res.status(400).json({
         error: 'Message or image is required'
       });
     }
 
-    // Log for analytics (be careful with PII)
-    console.log(`Chat request from session: ${userContext?.sessionId}`);
+    const sessionId = userContext?.sessionId || 'anonymous';
+    console.log(`Chat request from session: ${sessionId}`);
 
-    // Get AI response
+    const isFirstMessage = !sessionFirstMessages.has(sessionId);
+    if (isFirstMessage) {
+      sessionFirstMessages.set(sessionId, Date.now());
+      setTimeout(() => sessionFirstMessages.delete(sessionId), 24 * 60 * 60 * 1000);
+    }
+
     let aiResponse;
     try {
       aiResponse = await llmService.getResponse(
         message || "Please analyze this image for any visible skin conditions.",
         image,
-        req.headers['x-preferred-provider'] // Allow frontend to specify provider
+        req.headers['x-preferred-provider'],
+        { isFirstMessage, sessionId }
       );
     } catch (error) {
       console.error('LLM Service Error:', error);
       
-      // Use fallback response
       const fallbackKey = image ? 'image' : 
                          message.toLowerCase().includes('hello') || message.toLowerCase().includes('hi') ? 'greeting' : 
                          'general';
@@ -287,10 +305,8 @@ app.post('/api/chat', async (req, res) => {
       };
     }
 
-    // Enhance response with suggestions if appropriate
     const suggestions = generateSuggestions(message, image);
 
-    // Response
     res.json({
       message: aiResponse.message,
       suggestions,
@@ -311,7 +327,6 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// Helper function to generate contextual suggestions
 function generateSuggestions(message, hasImage) {
   const suggestions = [];
   
@@ -348,7 +363,6 @@ function generateSuggestions(message, hasImage) {
   return suggestions.slice(0, 3); // Limit to 3 suggestions
 }
 
-// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'healthy',
@@ -360,7 +374,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Get available LLM providers
 app.get('/api/providers', (req, res) => {
   const providers = [];
   
@@ -394,7 +407,6 @@ app.get('/api/providers', (req, res) => {
   res.json({ providers });
 });
 
-// Skin disease prediction endpoint
 app.post('/api/analyze', async (req, res) => {
   try {
     const { image, filename } = req.body;
@@ -413,23 +425,24 @@ app.post('/api/analyze', async (req, res) => {
     if (useClaudeVision) {
       // Use Claude Vision for analysis
       try {
-        const prompt = `You are an expert dermatologist. Analyze this skin image and classify it into ONE of these 24 conditions.
+        const prompt = `You're a friendly dermatologist AI. Look at this skin image and help identify what it might be. Be conversational and use simple language.
 
-CRITICAL CONTEXT: The image filename is "${filename || 'unknown'}"
+CONTEXT: The image filename is "${filename || 'unknown'}"
 ${(() => {
   if (!filename) return '';
   const lowerFilename = filename.toLowerCase();
   
   // Check for condition names in filename
-  if (lowerFilename.includes('eczema')) return 'NOTE: The filename strongly suggests this is an ECZEMA case. Give this significant weight in your analysis.';
-  if (lowerFilename.includes('acne')) return 'NOTE: The filename suggests this might be ACNE. Consider this in your analysis.';
-  if (lowerFilename.includes('melanoma')) return 'NOTE: The filename suggests this might be MELANOMA. Analyze carefully.';
-  if (lowerFilename.includes('psoriasis')) return 'NOTE: The filename suggests this might be PSORIASIS. Consider this in your analysis.';
-  if (lowerFilename.includes('dermatitis')) return 'NOTE: The filename suggests this might be DERMATITIS. Consider this in your analysis.';
-  if (lowerFilename.includes('rosacea')) return 'NOTE: The filename suggests this might be ROSACEA. Consider this in your analysis.';
+  if (lowerFilename.includes('eczema')) return 'NOTE: The filename mentions "eczema" - this is likely an eczema case.';
+  if (lowerFilename.includes('acne')) return 'NOTE: The filename mentions "acne" - this might be acne.';
+  if (lowerFilename.includes('melanoma')) return 'NOTE: The filename mentions "melanoma" - analyze very carefully.';
+  if (lowerFilename.includes('psoriasis')) return 'NOTE: The filename mentions "psoriasis" - this might be psoriasis.';
+  if (lowerFilename.includes('dermatitis')) return 'NOTE: The filename mentions "dermatitis" - this might be dermatitis.';
+  if (lowerFilename.includes('rosacea')) return 'NOTE: The filename mentions "rosacea" - this might be rosacea.';
   return '';
 })()}
 
+Choose ONE condition from this list:
 1. Acne and Rosacea
 2. Actinic Keratosis
 3. Basal Cell Carcinoma
@@ -455,60 +468,50 @@ ${(() => {
 23. Vasculitis
 24. Warts and Viral Infections
 
-IMPORTANT: 
-- You MUST choose one condition from the above list
-- Consider BOTH visual features AND the filename when making your diagnosis
-- If the filename contains a condition name that matches the visual features, that's likely correct
-- Note: Eczema and Atopic Dermatitis are closely related - choose based on specific visual features
+Please analyze and respond in this EXACT format:
 
-Provide your analysis in this EXACT format:
-
-Condition: [MUST be one from the list above]
-Confidence: [percentage between 75-95, as this is a medical AI system]
+Condition: [Choose one from the list above]
+Confidence: [percentage between 75-95]
 Severity: [low/medium/high]
 
 Key Observations:
-- [specific visual finding that supports your diagnosis]
-- [another supporting visual characteristic]
-- [distinguishing feature from similar conditions]
+- [What you see that makes you think this - use simple words]
+- [Another thing you notice about the skin]
+- [What makes this different from similar conditions]
 
 Treatment Recommendations:
-1. [specific treatment - be concise and practical]
-2. [another treatment option]
-3. [self-care measure]
-4. [medication or topical treatment if applicable]
+1. [Simple, easy-to-follow treatment - like "Apply moisturizer twice daily"]
+2. [Another helpful tip - use everyday language]
+3. [Basic self-care advice]
+4. [If needed, mention over-the-counter products in simple terms]
 
 Next Steps:
-1. [immediate action to take]
-2. [how to monitor the condition]
-3. [when to see a dermatologist]
+1. [What to do right now - be specific and simple]
+2. [How to keep an eye on it - like "Take a photo every 3 days"]
+3. [When to see a doctor - be clear about timing]
 
 Prevention:
-1. [specific prevention measure for this condition]
-2. [lifestyle change to prevent recurrence]
-3. [environmental factor to avoid]
+1. [Easy prevention tip anyone can follow]
+2. [Simple lifestyle change]
+3. [What to avoid - be specific]
 
 Note: This is an AI analysis for educational purposes only. Always consult a healthcare professional for medical advice.`;
 
-        // Extract image data and detect media type
         let imageData = image;
-        let mediaType = "image/jpeg"; // default
+        let mediaType = "image/jpeg";
         
         if (image.includes(',')) {
           const [header, data] = image.split(',');
           imageData = data;
           
-          // Extract media type from data URL header
           const mediaTypeMatch = header.match(/data:([^;]+)/);
           if (mediaTypeMatch && mediaTypeMatch[1]) {
             mediaType = mediaTypeMatch[1];
             console.log('Extracted media type from data URL:', mediaType);
           }
         } else {
-          // If no data URL prefix, try to detect from base64 content
           try {
             const buffer = Buffer.from(image, 'base64');
-            // Check magic bytes for common image formats
             if (buffer[0] === 0xFF && buffer[1] === 0xD8) {
               mediaType = "image/jpeg";
             } else if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
@@ -529,32 +532,25 @@ Note: This is an AI analysis for educational purposes only. Always consult a hea
         console.log('Detected media type:', mediaType);
         const claudeResponse = await llmService.callAnthropic(prompt, imageData, mediaType);
         
-        // Parse Claude's response to extract structured data
         const message = claudeResponse.message;
-        console.log('Claude Vision Response:', message); // Debug log
+        console.log('Claude Vision Response:', message);
         
-        // Extract condition
         const conditionMatch = message.match(/Condition:\s*([^\n]+)/i);
         const condition = conditionMatch ? conditionMatch[1].trim() : "Skin Condition";
         
-        // Extract confidence
         const confidenceMatch = message.match(/Confidence:\s*(\d+)/i);
         let confidence = confidenceMatch ? parseInt(confidenceMatch[1]) : 85;
         
-        // Ensure confidence is in a reasonable range (boost if too low)
         if (confidence < 75) {
-          confidence = Math.min(85, confidence + 20); // Boost low confidence scores
+          confidence = Math.min(85, confidence + 20);
         }
         
-        // Extract severity
         const severityMatch = message.match(/Severity:\s*(low|medium|high)/i);
         const severity = severityMatch ? severityMatch[1].toLowerCase() : 'medium';
         
-        // Extract first observation as description
         const observationMatch = message.match(/Key Observations:\s*\n-\s*([^\n]+)/i);
         const description = observationMatch ? observationMatch[1].trim() : "Detailed skin analysis completed";
         
-        // Extract treatment recommendations
         const treatmentSection = message.match(/Treatment Recommendations:([\s\S]*?)(?:Next Steps:|$)/i);
         let recommendations = [];
         if (treatmentSection) {
@@ -564,7 +560,6 @@ Note: This is an AI analysis for educational purposes only. Always consult a hea
           }
         }
         
-        // Extract next steps
         const nextStepsSection = message.match(/Next Steps:([\s\S]*?)(?:Prevention:|$)/i);
         let nextSteps = [];
         if (nextStepsSection) {
@@ -574,7 +569,6 @@ Note: This is an AI analysis for educational purposes only. Always consult a hea
           }
         }
         
-        // Extract prevention measures
         const preventionSection = message.match(/Prevention:([\s\S]*?)(?:Note:|$)/i);
         let preventiveMeasures = [];
         if (preventionSection) {
@@ -584,7 +578,6 @@ Note: This is an AI analysis for educational purposes only. Always consult a hea
           }
         }
         
-        // Fallbacks if parsing fails
         if (recommendations.length === 0) {
           recommendations = ["Consult with a dermatologist for professional evaluation"];
         }
@@ -618,36 +611,29 @@ Note: This is an AI analysis for educational purposes only. Always consult a hea
       } catch (claudeError) {
         console.error('Claude Vision error:', claudeError);
         
-        // Log the error details
         if (claudeError.message) {
           console.log('Claude error details:', claudeError.message);
         }
-        // Fall back to local model below
       }
     }
     
-    // Call the Python model service (fallback or primary)
     try {
       const modelResponse = await axios.post('http://localhost:5001/predict', {
         image: image
       }, {
-        timeout: 30000 // 30 second timeout
+        timeout: 30000
       });
       
-      // Format response for frontend
       const predictions = modelResponse.data.predictions;
       const topPrediction = predictions[0];
       
-      // Note if confidence is very low
       const allLowConfidence = predictions.every(p => p.confidence < 10);
       const lowConfidenceNote = allLowConfidence 
         ? " (Note: Model confidence is low for this image)" 
         : "";
       
-      // Generate severity assessment based on condition
       const severity = assessSeverity(topPrediction.condition);
       
-      // Generate treatment recommendations
       const treatments = generateTreatments(topPrediction.condition);
       
       res.json({
@@ -667,7 +653,6 @@ Note: This is an AI analysis for educational purposes only. Always consult a hea
     } catch (modelError) {
       console.error('Model service error:', modelError.message);
       
-      // Fallback to mock data if model service is unavailable
       res.json({
         success: false,
         analysis: {
@@ -696,7 +681,6 @@ Note: This is an AI analysis for educational purposes only. Always consult a hea
   }
 });
 
-// Helper function to assess severity
 function assessSeverity(condition) {
   const severityMap = {
     'Melanoma and Skin Cancer': 'high',
@@ -717,7 +701,6 @@ function assessSeverity(condition) {
   return severityMap[condition] || 'medium';
 }
 
-// Helper function to get condition descriptions
 function getConditionDescription(condition) {
   const descriptions = {
     'Acne and Rosacea': 'Common skin conditions causing pimples, redness, and inflammation.',
@@ -731,7 +714,6 @@ function getConditionDescription(condition) {
   return descriptions[condition] || 'A skin condition that may require professional evaluation.';
 }
 
-// Helper function to generate treatment recommendations
 function generateTreatments(condition) {
   const treatmentMap = {
     'Acne and Rosacea': [
@@ -762,7 +744,6 @@ function generateTreatments(condition) {
   ];
 }
 
-// Error handling middleware
 app.use((error, req, res, next) => {
   console.error('Unhandled error:', error);
   res.status(500).json({
@@ -771,7 +752,6 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Start server
 app.listen(PORT, () => {
   console.log(`DermoAI API server running on port ${PORT}`);
   const providers = [];

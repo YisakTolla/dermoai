@@ -541,9 +541,14 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
   };
 
   // Get photo URL from Google Places
-  const getPhotoUrl = (photoReference: string, maxWidth: number = 150): string => {
-    if (googleMapsApiKey && window.google) {
-      return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photoreference=${photoReference}&key=${googleMapsApiKey}`;
+  const getPhotoUrl = (photo: any, maxWidth: number = 150): string => {
+    if (googleMapsApiKey && window.google && photo) {
+      // Handle both photo_reference and getUrl() methods
+      if (photo.getUrl && typeof photo.getUrl === 'function') {
+        return photo.getUrl({ maxWidth: maxWidth });
+      } else if (photo.photo_reference) {
+        return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photoreference=${photo.photo_reference}&key=${googleMapsApiKey}`;
+      }
     }
     // Fallback to placeholder
     return `https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=${maxWidth}&h=${maxWidth}&fit=crop&crop=face`;
@@ -594,7 +599,6 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
       height: isExpanded ? '80vh' : '60px',
       maxHeight: isExpanded ? '800px' : '60px'
     }}>
-      {/* Header/Toggle Bar */}
       <div 
         onClick={() => setIsExpanded(!isExpanded)}
         style={{
@@ -638,14 +642,10 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '12px', color: '#6b7280' }}>
-            {isExpanded ? 'Minimize' : 'Expand'}
-          </span>
           {isExpanded ? <ChevronDownIcon /> : <ChevronUpIcon />}
         </div>
       </div>
 
-      {/* Main Content */}
       {isExpanded && (
         <div style={{ 
           height: 'calc(100% - 60px)', 
@@ -653,13 +653,11 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
           flexDirection: 'column',
           overflow: 'hidden'
         }}>
-          {/* Search and Filters */}
           <div style={{ 
             padding: '20px 24px', 
             borderBottom: '1px solid #e5e7eb',
             backgroundColor: 'white'
           }}>
-            {/* API Key Status */}
             {!googleMapsApiKey && (
               <div style={{
                 backgroundColor: '#fef3c7',
@@ -676,7 +674,6 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
               </div>
             )}
 
-            {/* Main Search Row */}
             <div style={{ 
               display: 'grid', 
               gridTemplateColumns: '2fr auto auto auto', 
@@ -764,7 +761,6 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
               </button>
             </div>
 
-            {/* Filters Row */}
             {showFilters && (
               <div style={{ 
                 display: 'grid', 
@@ -811,7 +807,6 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
               </div>
             )}
 
-            {/* Error Display */}
             {error && (
               <div style={{
                 backgroundColor: '#fef2f2',
@@ -827,7 +822,6 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
             )}
           </div>
 
-          {/* Results List */}
           <div style={{ 
             flex: 1, 
             overflowY: 'auto', 
@@ -906,7 +900,6 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', gap: '20px' }}>
-                      {/* Photo */}
                       <div style={{
                         width: '100px',
                         height: '100px',
@@ -920,12 +913,16 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
                       }}>
                         {doctor.photos && doctor.photos[0] ? (
                           <img
-                            src={getPhotoUrl(doctor.photos[0].photo_reference)}
+                            src={getPhotoUrl(doctor.photos[0])}
                             alt={doctor.name}
                             style={{
                               width: '100%',
                               height: '100%',
                               objectFit: 'cover'
+                            }}
+                            onError={(e) => {
+                              // Fallback to placeholder on error
+                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face';
                             }}
                           />
                         ) : (
@@ -934,7 +931,6 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
                       </div>
                       
                       <div style={{ flex: 1 }}>
-                        {/* Header */}
                         <div style={{ 
                           display: 'flex', 
                           justifyContent: 'space-between', 
@@ -989,7 +985,6 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
                           </div>
                         </div>
                         
-                        {/* Address */}
                         <p style={{ 
                           margin: '0 0 12px 0', 
                           color: '#6b7280', 
@@ -1002,7 +997,6 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
                           {doctor.vicinity}
                         </p>
                         
-                        {/* Contact and Status */}
                         <div style={{ 
                           display: 'flex', 
                           gap: '20px', 
@@ -1038,7 +1032,6 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
                           )}
                         </div>
                         
-                        {/* Hours (if available) */}
                         {doctor.opening_hours && doctor.opening_hours.weekday_text && (
                           <div style={{ marginBottom: '16px' }}>
                             <details style={{ fontSize: '12px' }}>
@@ -1056,7 +1049,6 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
                           </div>
                         )}
                         
-                        {/* Action Buttons */}
                         <div style={{ 
                           display: 'flex', 
                           justifyContent: 'space-between', 
@@ -1149,7 +1141,6 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
                             )}
                           </div>
                           
-                          {/* Source Attribution */}
                           <div style={{ fontSize: '10px', color: '#9ca3af' }}>
                             {googleMapsApiKey && isGoogleLoaded ? 'Powered by Google Maps' : 'Demo Data'}
                           </div>

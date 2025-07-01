@@ -153,8 +153,10 @@ venv.bak/
 *.pkl
 *.joblib
 *.model
+*.pth
 models/*.h5
 models/*.pkl
+skin_disease_model.pth
 
 # ===================================
 # Uploaded Files and User Content

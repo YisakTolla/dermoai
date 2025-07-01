@@ -1,9 +1,0 @@
-Copy the code in ml_model.py to a Google Colab file I shared with you. I also added the google colab content inside ml_model.py
-Use the Kaggle API key to connect to the dataset. Make sure to sepeate the code into cells. This code should handle the overfitting issue.
-Once the Google Colab was finished running, download the files. The Colab code saves models to Google Drive at:
-/content/drive/MyDrive/skin_disease_models/final_enhanced_model_TIMESTAMP.keras
-
-Download these files to your local machine:
-# 1. final_enhanced_model_TIMESTAMP.keras
-# 2. enhanced_results_summary_TIMESTAMP.json  
-# 3. prediction_function_TIMESTAMP.py

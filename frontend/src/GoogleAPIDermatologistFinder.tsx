@@ -124,9 +124,10 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
   const [sortBy, setSortBy] = useState('distance');
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [userCoordinates, setUserCoordinates] = useState<{lat: number, lng: number} | null>(null);
   const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
-  const mapRef = useRef<HTMLDivElement>(null);
+  // const mapRef = useRef<HTMLDivElement>(null);
   const googleMapsApiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || "";
 
   // Load Google Maps Script
@@ -136,6 +137,7 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
     } else if (window.google) {
       setIsGoogleLoaded(true);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExpanded, googleMapsApiKey]);
 
   const loadGoogleMapsScript = () => {
@@ -574,6 +576,7 @@ const GoogleAPIDermatologistFinder: React.FC<GoogleAPIFinderProps> = ({
       const sortedResults = sortResults([...dermatologists]);
       setDermatologists(sortedResults);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortBy]);
 
   return (

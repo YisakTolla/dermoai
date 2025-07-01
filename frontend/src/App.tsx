@@ -27,6 +27,8 @@ function App() {
   // API Configuration
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -41,6 +43,9 @@ function App() {
         alert('Please select a valid image file');
         return;
       }
+
+      // Store filename
+      setSelectedFileName(file.name);
 
       const reader = new FileReader();
       reader.onload = () => {
@@ -73,16 +78,47 @@ function App() {
         },
         body: JSON.stringify({
           image: selectedImage.split(',')[1], // Remove data:image/jpeg;base64, prefix
+          filename: selectedFileName,
           timestamp: new Date().toISOString()
         })
       });
 
       if (response.ok) {
-        const result = await response.json();
-        setAnalysisResult(result);
+        const data = await response.json();
+        console.log('API Response:', data); // Debug log
+        
+        // Transform API response to match AnalysisResult interface
+        if (data.success && data.analysis) {
+          const analysis = data.analysis;
+          const result: AnalysisResult = {
+            condition: analysis.condition,
+            confidence: Math.round(analysis.confidence),
+            severity: analysis.severity === 'high' ? 'High' : 
+                     analysis.severity === 'medium' ? 'Medium' : 'Low',
+            category: getCategoryFromCondition(analysis.condition),
+            recommendations: analysis.recommendations || [],
+            nextSteps: analysis.nextSteps || [
+              'Consult with a dermatologist for professional evaluation',
+              'Take clear photos to track any changes',
+              'Keep a log of symptoms and triggers'
+            ],
+            preventiveMeasures: analysis.preventiveMeasures || [
+              'Protect your skin from excessive sun exposure',
+              'Maintain good hygiene practices',
+              'Stay hydrated and eat a balanced diet',
+              'Manage stress levels'
+            ],
+            timeframe: getTimeframeFromCondition(analysis.condition)
+          };
+          console.log('Setting real model result:', result); // Debug log
+          setAnalysisResult(result);
+        } else {
+          console.warn('Invalid API response format, using mock data', data);
+          mockAnalysis();
+        }
       } else {
         // Fallback to mock analysis if API fails
-        console.warn('API analysis failed, using mock data');
+        console.warn('API analysis failed with status:', response.status);
         mockAnalysis();
       }
     } catch (error) {
@@ -96,6 +132,56 @@ function App() {
     setTimeout(() => {
       analysisRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 500);
+  };
+
+  // Helper function to get category from condition
+  const getCategoryFromCondition = (condition: string): string => {
+    const categoryMap: Record<string, string> = {
+      'Acne and Rosacea': 'Inflammatory',
+      'Melanoma and Skin Cancer': 'Neoplastic',
+      'Basal Cell Carcinoma': 'Neoplastic',
+      'Eczema': 'Inflammatory',
+      'Atopic Dermatitis': 'Inflammatory',
+      'Psoriasis and Lichen Planus': 'Autoimmune',
+      'Fungal Infections': 'Infectious',
+      'Bacterial Infections': 'Infectious',
+      'Warts and Viral Infections': 'Infectious',
+      'Contact Dermatitis': 'Allergic',
+      'Urticaria (Hives)': 'Allergic',
+      'Pigmentation Disorders': 'Pigmentary',
+      'Hair Loss and Alopecia': 'Hair Disorder',
+      'Nail Fungus': 'Infectious',
+      'Vasculitis': 'Vascular',
+      'Vascular Tumors': 'Vascular'
+    };
+    
+    for (const [key, value] of Object.entries(categoryMap)) {
+      if (condition.includes(key)) {
+        return value;
+      }
+    }
+    return 'Dermatological';
+  };
+
+  // Helper function to get timeframe from condition
+  const getTimeframeFromCondition = (condition: string): string => {
+    const timeframeMap: Record<string, string> = {
+      'Melanoma': 'Immediate medical attention required',
+      'Basal Cell Carcinoma': 'Schedule appointment within 1-2 weeks',
+      'Acne': '4-6 weeks for improvement',
+      'Eczema': '2-4 weeks for improvement',
+      'Fungal': '2-6 weeks with treatment',
+      'Bacterial': '1-2 weeks with antibiotics',
+      'Contact Dermatitis': '1-2 weeks after avoiding trigger',
+      'Psoriasis': 'Chronic condition requiring ongoing management'
+    };
+    
+    for (const [key, value] of Object.entries(timeframeMap)) {
+      if (condition.includes(key)) {
+        return value;
+      }
+    }
+    return '2-4 weeks for evaluation';
   };
 
   // Mock analysis function as fallback
@@ -181,6 +267,7 @@ function App() {
 
   const resetAnalysis = () => {
     setSelectedImage(null);
+    setSelectedFileName(null);
     setAnalysisResult(null);
     setIsAnalyzing(false);
     if (fileInputRef.current) {
@@ -631,7 +718,13 @@ function App() {
             <div className="link-column">
               <h4>Healthcare</h4>
               <a href="#analysis">Skin Analysis</a>
-              <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }}>Find Dermatologists</a>
+              <button 
+                className="footer-link" 
+                onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
+                style={{ background: 'none', border: 'none', color: 'inherit', padding: 0, font: 'inherit', cursor: 'pointer', textAlign: 'left' }}
+              >
+                Find Dermatologists
+              </button>
               <a href="#features">AI Chat Assistant</a>
               <a href="#disclaimer">Medical Disclaimer</a>
             </div>

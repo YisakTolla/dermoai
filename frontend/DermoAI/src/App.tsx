@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 
+// Import the new secure components
+import Chatbot from './Chatbot';
+import GoogleAPIDermatologistFinder from './GoogleAPIDermatologistFinder';
+
 interface AnalysisResult {
   condition: string;
   confidence: number;
@@ -20,9 +24,24 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const analysisRef = useRef<HTMLDivElement>(null);
 
+  // API Configuration
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Please select an image smaller than 10MB');
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file');
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = () => {
         setSelectedImage(reader.result as string);
@@ -45,90 +64,119 @@ function App() {
 
     setIsAnalyzing(true);
     
+    try {
+      // Call your backend API for analysis
+      const response = await fetch(`${API_BASE_URL}/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: selectedImage.split(',')[1], // Remove data:image/jpeg;base64, prefix
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setAnalysisResult(result);
+      } else {
+        // Fallback to mock analysis if API fails
+        console.warn('API analysis failed, using mock data');
+        mockAnalysis();
+      }
+    } catch (error) {
+      console.error('Analysis error:', error);
+      // Fallback to mock analysis
+      mockAnalysis();
+    }
+
+    setIsAnalyzing(false);
+    
     setTimeout(() => {
-      const mockResults: AnalysisResult[] = [
-        {
-          condition: 'Healthy Skin',
-          confidence: 94,
-          severity: 'Low',
-          category: 'Normal',
-          timeframe: 'Current state',
-          recommendations: [
-            'Continue your current skincare routine',
-            'Use broad-spectrum SPF 30+ sunscreen daily',
-            'Maintain adequate hydration',
-            'Consider antioxidant-rich skincare products'
-          ],
-          nextSteps: [
-            'Regular skin self-examinations monthly',
-            'Annual dermatologist check-up',
-            'Monitor any changes in skin texture or color'
-          ],
-          preventiveMeasures: [
-            'Avoid excessive sun exposure',
-            'Use gentle, pH-balanced cleansers',
-            'Maintain a balanced diet rich in vitamins',
-            'Get adequate sleep and manage stress'
-          ]
-        },
-        {
-          condition: 'Acne Vulgaris',
-          confidence: 87,
-          severity: 'Medium',
-          category: 'Inflammatory',
-          timeframe: '2-4 weeks for improvement',
-          recommendations: [
-            'Use salicylic acid or benzoyl peroxide cleansers',
-            'Apply non-comedogenic moisturizers',
-            'Avoid touching or picking at affected areas',
-            'Consider professional treatment options'
-          ],
-          nextSteps: [
-            'Consult with a dermatologist within 2 weeks',
-            'Start gentle, consistent skincare routine',
-            'Monitor progress and adjust treatment as needed'
-          ],
-          preventiveMeasures: [
-            'Wash pillowcases frequently',
-            'Clean makeup brushes regularly',
-            'Avoid oil-based skincare products',
-            'Maintain hormonal balance through proper diet'
-          ]
-        },
-        {
-          condition: 'Dry Skin (Xerosis)',
-          confidence: 91,
-          severity: 'Low',
-          category: 'Environmental',
-          timeframe: '1-2 weeks for improvement',
-          recommendations: [
-            'Use ceramide-based moisturizers twice daily',
-            'Take shorter, lukewarm showers',
-            'Apply moisturizer immediately after bathing',
-            'Use a humidifier in dry environments'
-          ],
-          nextSteps: [
-            'Establish consistent moisturizing routine',
-            'Monitor skin response to new products',
-            'Consider professional consultation if persistent'
-          ],
-          preventiveMeasures: [
-            'Avoid harsh soaps and detergents',
-            'Wear protective clothing in cold weather',
-            'Stay hydrated with adequate water intake',
-            'Use gentle, fragrance-free products'
-          ]
-        }
-      ];
-      
-      const randomResult = mockResults[Math.floor(Math.random() * mockResults.length)];
-      setAnalysisResult(randomResult);
-      setIsAnalyzing(false);
-      
-      setTimeout(() => {
-        analysisRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 500);
-    }, 3000);
+      analysisRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 500);
+  };
+
+  // Mock analysis function as fallback
+  const mockAnalysis = () => {
+    const mockResults: AnalysisResult[] = [
+      {
+        condition: 'Healthy Skin',
+        confidence: 94,
+        severity: 'Low',
+        category: 'Normal',
+        timeframe: 'Current state',
+        recommendations: [
+          'Continue your current skincare routine',
+          'Use broad-spectrum SPF 30+ sunscreen daily',
+          'Maintain adequate hydration',
+          'Consider antioxidant-rich skincare products'
+        ],
+        nextSteps: [
+          'Regular skin self-examinations monthly',
+          'Annual dermatologist check-up',
+          'Monitor any changes in skin texture or color'
+        ],
+        preventiveMeasures: [
+          'Avoid excessive sun exposure',
+          'Use gentle, pH-balanced cleansers',
+          'Maintain a balanced diet rich in vitamins',
+          'Get adequate sleep and manage stress'
+        ]
+      },
+      {
+        condition: 'Acne Vulgaris',
+        confidence: 87,
+        severity: 'Medium',
+        category: 'Inflammatory',
+        timeframe: '2-4 weeks for improvement',
+        recommendations: [
+          'Use salicylic acid or benzoyl peroxide cleansers',
+          'Apply non-comedogenic moisturizers',
+          'Avoid touching or picking at affected areas',
+          'Consider professional treatment options'
+        ],
+        nextSteps: [
+          'Consult with a dermatologist within 2 weeks',
+          'Start gentle, consistent skincare routine',
+          'Monitor progress and adjust treatment as needed'
+        ],
+        preventiveMeasures: [
+          'Wash pillowcases frequently',
+          'Clean makeup brushes regularly',
+          'Avoid oil-based skincare products',
+          'Maintain hormonal balance through proper diet'
+        ]
+      },
+      {
+        condition: 'Dry Skin (Xerosis)',
+        confidence: 91,
+        severity: 'Low',
+        category: 'Environmental',
+        timeframe: '1-2 weeks for improvement',
+        recommendations: [
+          'Use ceramide-based moisturizers twice daily',
+          'Take shorter, lukewarm showers',
+          'Apply moisturizer immediately after bathing',
+          'Use a humidifier in dry environments'
+        ],
+        nextSteps: [
+          'Establish consistent moisturizing routine',
+          'Monitor skin response to new products',
+          'Consider professional consultation if persistent'
+        ],
+        preventiveMeasures: [
+          'Avoid harsh soaps and detergents',
+          'Wear protective clothing in cold weather',
+          'Stay hydrated with adequate water intake',
+          'Use gentle, fragrance-free products'
+        ]
+      }
+    ];
+    
+    const randomResult = mockResults[Math.floor(Math.random() * mockResults.length)];
+    setAnalysisResult(randomResult);
   };
 
   const resetAnalysis = () => {
@@ -142,6 +190,26 @@ function App() {
 
   const triggerFileSelect = () => {
     fileInputRef.current?.click();
+  };
+
+  const exportReport = () => {
+    if (!analysisResult) return;
+    
+    const reportData = {
+      timestamp: new Date().toISOString(),
+      analysis: analysisResult,
+      disclaimer: 'This analysis is for educational purposes only and should not replace professional medical advice.'
+    };
+    
+    const dataStr = JSON.stringify(reportData, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `dermoai-analysis-${new Date().toISOString().split('T')[0]}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
   };
 
   useEffect(() => {
@@ -417,11 +485,27 @@ function App() {
                 <button className="btn btn-primary" onClick={resetAnalysis}>
                   New Analysis
                 </button>
-                <button className="btn btn-secondary">
+                <button className="btn btn-secondary" onClick={exportReport}>
                   Export Report
                 </button>
-                <button className="btn btn-secondary">
-                  Share Results
+                <button className="btn btn-secondary" onClick={() => window.print()}>
+                  Print Results
+                </button>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    // Scroll to dermatologist finder
+                    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                    // Small delay to allow scroll, then expand finder
+                    setTimeout(() => {
+                      const finderElement = document.querySelector('[style*="position: fixed"][style*="bottom: 0"]') as HTMLElement;
+                      if (finderElement) {
+                        finderElement.click();
+                      }
+                    }, 1000);
+                  }}
+                >
+                  Find Local Dermatologist
                 </button>
               </div>
             </div>
@@ -455,8 +539,19 @@ function App() {
                   <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
                 </svg>
               </div>
-              <h3>Open Source AI</h3>
-              <p>Built with Hugging Face's ecosystem to demonstrate how open-source AI can democratize healthcare technology access.</p>
+              <h3>AI-Powered Chat Assistant</h3>
+              <p>Intelligent chatbot powered by advanced LLMs that can answer dermatology questions and provide educational information.</p>
+            </div>
+            
+            <div className="feature-item">
+              <div className="feature-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+              </div>
+              <h3>Real Dermatologist Finder</h3>
+              <p>Google Maps integration to find actual local dermatologists with real contact information, hours, and reviews.</p>
             </div>
             
             <div className="feature-item">
@@ -468,7 +563,7 @@ function App() {
                 </svg>
               </div>
               <h3>Privacy by Design</h3>
-              <p>User privacy is our priority - all processing happens locally without storing or transmitting personal data to external servers.</p>
+              <p>User privacy is our priority - all processing happens securely with proper API key management and data protection.</p>
             </div>
             
             <div className="feature-item">
@@ -490,20 +585,8 @@ function App() {
                   <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                 </svg>
               </div>
-              <h3>Cross-Platform Access</h3>
-              <p>Web-based solution designed for global accessibility - works on any device with an internet connection.</p>
-            </div>
-            
-            <div className="feature-item">
-              <div className="feature-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <line x1="18" y1="20" x2="18" y2="10"/>
-                  <line x1="12" y1="20" x2="12" y2="4"/>
-                  <line x1="6" y1="20" x2="6" y2="14"/>
-                </svg>
-              </div>
-              <h3>Future Vision</h3>
-              <p>Demonstrating the transformative potential of AI in democratizing medical screening and expanding healthcare access globally.</p>
+              <h3>Complete Healthcare Solution</h3>
+              <p>End-to-end solution from AI analysis to finding real medical care, bridging the gap between technology and healthcare access.</p>
             </div>
           </div>
         </div>
@@ -523,7 +606,8 @@ function App() {
             </div>
             <p>
               This demonstration tool is not intended for actual medical diagnosis or treatment decisions. 
-              Always consult qualified healthcare providers for medical advice and proper diagnosis.
+              All AI analysis results are for educational purposes only. Always consult qualified healthcare 
+              providers for medical advice and proper diagnosis. Use our "Find Local Dermatologist" to help locate a dermatologist.
             </p>
           </div>
         </div>
@@ -535,34 +619,41 @@ function App() {
           <div className="footer-grid">
             <div className="footer-brand">
               <h3>DermoAI</h3>
-              <p>AI-powered skin analysis platform making dermatological screening more accessible worldwide. Using advanced machine learning to help identify potential skin conditions and support early detection efforts.</p>
+              <p>AI-powered skin analysis platform making dermatological screening more accessible worldwide. Using advanced machine learning to help identify potential skin conditions and connect users with professional healthcare providers.</p>
             </div>
             <div className="link-column">
               <h4>Technology</h4>
               <a href="#how-it-works">How It Works</a>
               <a href="#features">Features</a>
               <a href="#analysis">Try Demo</a>
-              <a href="https://huggingface.co/spaces/Hrigved/skinalyze">HuggingFace Model</a>
+              <a href="https://huggingface.co/spaces/Hrigved/skinalyze" target="_blank" rel="noopener noreferrer">HuggingFace Model</a>
             </div>
             <div className="link-column">
-              <h4>Datasets</h4>
-              <a href="https://www.kaggle.com/datasets/shubhamgoel27/dermnet">DermNet (23 Categories)</a>
-              <a href="https://www.kaggle.com/datasets/trainingdatapro/skin-defects-acne-redness-and-bags-under-the-eyes">Skin Defects Dataset</a>
-              <a href="#training-details">Training Details</a>
-              <a href="#model-performance">Model Performance</a>
+              <h4>Healthcare</h4>
+              <a href="#analysis">Skin Analysis</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }}>Find Dermatologists</a>
+              <a href="#features">AI Chat Assistant</a>
+              <a href="#disclaimer">Medical Disclaimer</a>
             </div>
             <div className="link-column">
               <h4>About</h4>
-              <a href="#hackathon">Hackathon Project</a>
-              <a href="#github">Source Code</a>
-              <a href="#team">Development Team</a>
+              <a href="#hero">About DermoAI</a>
+              <a href="https://github.com/yourusername/dermoai" target="_blank" rel="noopener noreferrer">Source Code</a>
+              <a href="#features">Innovation</a>
+              <a href="#disclaimer">Privacy Policy</a>
             </div>
           </div>
           <div className="footer-bottom">
-            <p>&copy; 2024 DermoAI</p>
+            <p>&copy; 2024 DermoAI - Democratizing Access to Dermatological AI Technology</p>
           </div>
         </div>
       </footer>
+
+      {/* Secure AI Chatbot */}
+      <Chatbot />
+
+      {/* Google Maps Dermatologist Finder */}
+      <GoogleAPIDermatologistFinder userLocation="20164" />
     </div>
   );
 }

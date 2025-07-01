@@ -264,6 +264,27 @@ const fallbackResponses = {
   image: "I can see you've uploaded an image for analysis. While I'm currently having some technical difficulties with my image analysis capabilities, I recommend consulting with a dermatologist for professional evaluation of any skin concerns."
 };
 
+// Root health check
+app.get('/', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'DermoAI Backend',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// API health check
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    providers: {
+      anthropic: !!process.env.ANTHROPIC_API_KEY,
+      googleMaps: !!process.env.GOOGLE_MAPS_API_KEY
+    }
+  });
+});
+
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, image, userContext } = req.body;
@@ -756,7 +777,7 @@ app.use((error, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`DermoAI API server running on port ${PORT}`);
   const providers = [];
   if (process.env.ANTHROPIC_API_KEY) providers.push('anthropic');
